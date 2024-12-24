@@ -1,5 +1,7 @@
 # Docker Compose Examples for Cache Manager
 
+[![Docker Image CI/CD](https://github.com/hhftechnology/docker-cache-manager-unraid/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/hhftechnology/docker-cache-manager-unraid/actions/workflows/docker-publish.yml)
+
 ## Basic Setup Example
 ```yaml
 version: '3.8'
