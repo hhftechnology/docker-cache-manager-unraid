@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  cache-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cache-manager
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /mnt/cache:/mnt/cache:ro
+      - ./config:/app/config
+      - ./logs:/app/logs
+    environment:
+      - TZ=UTC
+      - CONFIG_FILE=/app/config/default.conf
+      - LOG_FILE=/app/logs/cache_manager.log
+    restart: unless-stopped
+    privileged: true
