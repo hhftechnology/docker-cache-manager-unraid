@@ -1,247 +1,108 @@
-# Docker Cache Manager for Unraid
+# Docker Compose Examples for Cache Manager
 
-A sophisticated Docker container solution for managing cache usage and download operations in Unraid environments. This system automatically manages Docker containers based on cache utilization, preventing cache overflow while maintaining optimal download performance.
-
-## Table of Contents
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Usage Scenarios](#usage-scenarios)
-- [Advanced Configuration](#advanced-configuration)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
-
-## Features
-
-- Automated container management based on cache usage
-- Configurable thresholds for pausing and resuming containers
-- Integration with Unraid's mover service
-- Comprehensive logging system with rotation
-- Notification system for critical events
-- Multiple deployment options
-- Support for various download clients
-- Customizable monitoring and alerting
-
-## Requirements
-
-- Unraid 6.9.0 or higher
-- Docker runtime environment
-- Access to Docker socket
-- Sufficient permissions to manage containers
-- Cache drive configured in Unraid
-- Docker containers for download clients (optional)
-
-## Installation
-
-### Quick Start
-
-1. Clone the repository:
-```bash
-git clone https://github.com/hhftechnology/docker-cache-manager-unraid.git
-cd docker-cache-manager-unraid
-```
-
-2. Configure your settings:
-```bash
-cp config/default.conf config/my-config.conf
-nano config/my-config.conf
-```
-
-3. Deploy using Docker Compose:
-```bash
-docker-compose up -d
-```
-
-### Manual Installation
-
-1. Build the Docker image:
-```bash
-docker build -t cache-manager .
-```
-
-2. Run the container:
-```bash
-docker run -d \
-  --name cache-manager \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v /mnt/cache:/mnt/cache:ro \
-  -v $(pwd)/config:/app/config \
-  -v $(pwd)/logs:/app/logs \
-  cache-manager
-```
-
-## Configuration
-
-### Basic Configuration
-
-The system can be configured through the `config/default.conf` file:
-
-```bash
-# Basic settings
-CACHE_DIR="/mnt/cache"
-PAUSE_THRESHOLD=85
-RESUME_THRESHOLD=70
-CONTAINER_NAME="downloader"
-
-# Advanced settings
-CHECK_INTERVAL=300
-ENABLE_NOTIFICATIONS=true
-```
-
-### Environment Variables
-
-You can override configuration settings using environment variables:
-
-```yaml
-environment:
-  - PAUSE_THRESHOLD=90
-  - RESUME_THRESHOLD=75
-  - CHECK_INTERVAL=180
-```
-
-## Usage Scenarios
-
-### Scenario 1: Large Media Downloads (Usenet)
-
-Perfect for managing large Usenet downloads where cache overflow is a common issue.
-
+## Basic Setup Example
 ```yaml
 version: '3.8'
-
 services:
   cache-manager:
-    image: cache-manager
+    image: hhftechnology/docker-cache-manager-unraid:latest
+    container_name: cache-manager
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /mnt/cache:/mnt/cache:ro
+      - ./config:/app/config
+      - ./logs:/app/logs
     environment:
+      - TZ=UTC
+      - PAUSE_THRESHOLD=85
+      - RESUME_THRESHOLD=70
+      - CONTAINER_NAME=downloader
+    privileged: true
+```
+
+## Scenario 1: Large Media Downloads (Usenet)
+```yaml
+version: '3.8'
+services:
+  cache-manager:
+    image: hhftechnology/docker-cache-manager-unraid:latest
+    container_name: cache-manager-usenet
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /mnt/cache:/mnt/cache:ro
+      - /mnt/user/appdata/cache-manager:/app/config
+      - /mnt/user/appdata/cache-manager/logs:/app/logs
+    environment:
+      - TZ=UTC
       - CONTAINER_NAME=nzbget
       - PAUSE_THRESHOLD=90
       - RESUME_THRESHOLD=75
-      - INCOMPLETE_DIR=/mnt/cache/downloads/incomplete
-      - COMPLETE_DIR=/mnt/cache/downloads/complete
-    volumes:
-      - /mnt/cache/downloads:/mnt/cache/downloads
+      - CHECK_INTERVAL=300
+      - INCOMPLETE_DIR=/mnt/cache/downloads/usenet/incomplete
+      - COMPLETE_DIR=/mnt/cache/downloads/usenet/complete
+      - ENABLE_NOTIFICATIONS=true
+      - NOTIFICATION_URL=http://notify.mydomain.com
+      - MOVER_CHECK_ENABLED=true
+    privileged: true
+    networks:
+      - usenet_network
 ```
 
-Recommended Unraid Share Configuration:
-```plaintext
-Downloads Share:
-- Cache: Only
-- Minimum Free Space: 100GB
-- Direct I/O: Enabled
-
-Media Share:
-- Cache: Yes
-- Minimum Free Space: 50GB
-```
-
-### Scenario 2: Multiple Download Clients (Torrents + Usenet)
-
-Managing multiple download clients with different priorities.
-
+## Scenario 2: Multiple Download Clients
 ```yaml
 version: '3.8'
-
 services:
   cache-manager:
-    image: cache-manager
-    environment:
-      - CONTAINER_NAMES=["qbittorrent", "nzbget"]
-      - PRIORITIES={"qbittorrent": 1, "nzbget": 2}
-      - PAUSE_THRESHOLDS={"qbittorrent": 85, "nzbget": 75}
-```
-
-Share Structure:
-```plaintext
-/mnt/cache/
-├── downloads/
-│   ├── torrents/
-│   │   ├── incomplete/
-│   │   └── complete/
-│   └── usenet/
-│       ├── incomplete/
-│       └── complete/
-```
-
-### Scenario 3: High-Speed Cache (NVMe)
-
-Optimized for systems with high-speed NVMe cache drives.
-
-```yaml
-services:
-  cache-manager:
-    image: cache-manager
-    environment:
-      - CHECK_INTERVAL=60
-      - MOVER_THRESHOLD=95
-      - ENABLE_TURBO_WRITE=true
+    image: hhftechnology/docker-cache-manager-unraid:latest
+    container_name: cache-manager-multi
+    restart: unless-stopped
     volumes:
-      - /mnt/nvme:/mnt/cache
-```
-
-Recommended Mover Settings:
-```plaintext
-Schedule: Every 15 minutes
-Threshold: 95%
-Turbo Write: Enabled
-```
-
-### Scenario 4: Small Cache Drive
-
-Optimized configuration for systems with limited cache space.
-
-```yaml
-services:
-  cache-manager:
-    image: cache-manager
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /mnt/cache:/mnt/cache:ro
+      - ./config:/app/config
+      - ./logs:/app/logs
     environment:
-      - PAUSE_THRESHOLD=80
-      - RESUME_THRESHOLD=60
-      - MAX_CONCURRENT_DOWNLOADS=2
-      - AGGRESSIVE_MOVER=true
+      - TZ=UTC
+      - CONTAINER_NAMES=["qbittorrent","nzbget","transmission"]
+      - PAUSE_THRESHOLDS={"qbittorrent":85,"nzbget":80,"transmission":75}
+      - RESUME_THRESHOLDS={"qbittorrent":70,"nzbget":65,"transmission":60}
+      - CHECK_INTERVAL=180
+      - ENABLE_DEBUG_LOGGING=true
+      - MAX_LOG_SIZE=50M
+      - NOTIFICATION_DISCORD_WEBHOOK=https://discord.webhook.url
+    privileged: true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
 ```
 
-Share Configuration:
-```plaintext
-Downloads:
-- Cache: Only
-- Minimum Free Space: 25%
-- Split Level: 1
-```
-
-## Advanced Configuration
-
-### Notification Setup
-
-Configure notifications through popular services:
-
+## Scenario 3: High-Speed Cache (NVMe)
 ```yaml
-environment:
-  - ENABLE_NOTIFICATIONS=true
-  - NOTIFICATION_SERVICE=discord
-  - NOTIFICATION_URL=https://discord.webhook.url
-  - NOTIFICATION_EVENTS=["pause", "resume", "error"]
-```
-
-### Custom Monitoring
-
-Add custom monitoring rules:
-
-```bash
-# config/monitoring.conf
-MONITOR_DISK_IO=true
-IO_THRESHOLD=50MB/s
-MONITOR_NETWORK=true
-NETWORK_THRESHOLD=100MB/s
-```
-
-### Resource Limits
-
-Configure container resource limits:
-
-```yaml
+version: '3.8'
 services:
   cache-manager:
+    image: hhftechnology/docker-cache-manager-unraid:latest
+    container_name: cache-manager-nvme
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /mnt/nvme_cache:/mnt/cache:ro
+      - ./config:/app/config
+      - ./logs:/app/logs
+    environment:
+      - TZ=UTC
+      - PAUSE_THRESHOLD=95
+      - RESUME_THRESHOLD=85
+      - CHECK_INTERVAL=60
+      - ENABLE_TURBO_WRITE=true
+      - MOVER_AGGRESSIVE=true
+      - IO_THRESHOLD=500MB/s
+      - MONITOR_DISK_IO=true
+    privileged: true
     deploy:
       resources:
         limits:
@@ -249,58 +110,143 @@ services:
           memory: 256M
 ```
 
-## Troubleshooting
-
-### Common Issues
-
-1. Container Won't Start
-```bash
-# Check logs
-docker logs cache-manager
-
-# Verify permissions
-ls -l /var/run/docker.sock
+## Scenario 4: Small Cache Drive with Multiple Apps
+```yaml
+version: '3.8'
+services:
+  cache-manager:
+    image: hhftechnology/docker-cache-manager-unraid:latest
+    container_name: cache-manager-small
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /mnt/cache:/mnt/cache:ro
+      - ./config:/app/config
+      - ./logs:/app/logs
+    environment:
+      - TZ=UTC
+      - PAUSE_THRESHOLD=75
+      - RESUME_THRESHOLD=60
+      - CHECK_INTERVAL=120
+      - MAX_CONCURRENT_DOWNLOADS=2
+      - CONTAINER_NAMES=["plex","qbittorrent","radarr","sonarr"]
+      - PRIORITY_CONTAINERS=["plex"]
+      - AGGRESSIVE_MOVER=true
+      - MINIMUM_FREE_SPACE=10G
+      - ENABLE_NOTIFICATIONS=true
+      - NOTIFICATION_TYPE=telegram
+      - TELEGRAM_BOT_TOKEN=your_bot_token
+      - TELEGRAM_CHAT_ID=your_chat_id
+    privileged: true
+    labels:
+      - "com.unraid.docker.managed=true"
+      - "com.unraid.docker.icon=https://raw.githubusercontent.com/your-repo/icon.png"
 ```
 
-2. High Cache Usage
-```bash
-# Check current status
-docker exec cache-manager /app/scripts/status.sh
+## Scenario 5: Media Server with Plex Transcoding
+```yaml
+version: '3.8'
+services:
+  cache-manager:
+    image: hhftechnology/docker-cache-manager-unraid:latest
+    container_name: cache-manager-plex
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /mnt/cache:/mnt/cache:ro
+      - /mnt/transcodes:/mnt/transcodes:ro
+      - ./config:/app/config
+      - ./logs:/app/logs
+    environment:
+      - TZ=UTC
+      - CONTAINER_NAMES=["plex","downloader"]
+      - PAUSE_THRESHOLD=80
+      - RESUME_THRESHOLD=65
+      - CHECK_INTERVAL=300
+      - MONITOR_PATHS=["/mnt/transcodes","/mnt/cache/downloads"]
+      - PLEX_TOKEN=your_plex_token
+      - ENABLE_PLEX_WEBHOOK=true
+      - WEBHOOK_URL=http://your-webhook-url
+    privileged: true
+    networks:
+      - plex_network
 
-# Force mover run
-docker exec cache-manager /app/scripts/force-move.sh
+networks:
+  plex_network:
+    external: true
 ```
 
-3. Container Not Pausing
-```bash
-# Verify container name
-docker ps --format "{{.Names}}"
-
-# Check container status
-docker inspect downloader --format "{{.State.Status}}"
+## Scenario 6: Docker Development Environment
+```yaml
+version: '3.8'
+services:
+  cache-manager:
+    image: hhftechnology/docker-cache-manager-unraid:latest
+    container_name: cache-manager-dev
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /mnt/cache:/mnt/cache:ro
+      - ./config:/app/config
+      - ./logs:/app/logs
+      - ./custom-scripts:/app/custom-scripts
+    environment:
+      - TZ=UTC
+      - CONTAINER_PATTERNS=["*-dev", "*-test"]
+      - EXCLUDE_CONTAINERS=["database","redis"]
+      - PAUSE_THRESHOLD=70
+      - RESUME_THRESHOLD=50
+      - CHECK_INTERVAL=60
+      - ENABLE_DEBUG_LOGGING=true
+      - CUSTOM_SCRIPT_PATH=/app/custom-scripts/dev-handler.sh
+    privileged: true
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "/app/scripts/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 ```
 
-### Log Analysis
+## Usage Notes
 
-Analyze logs for issues:
-```bash
-# View real-time logs
-tail -f logs/cache_manager.log
+1. All configurations assume:
+   - The image is already pulled
+   - Required directories exist
+   - Proper permissions are set
 
-# Search for errors
-grep ERROR logs/cache_manager.log
-```
+2. Before using any configuration:
+   - Update timezone (TZ) to match your location
+   - Modify paths to match your Unraid setup
+   - Update notification tokens/webhooks
+   - Adjust thresholds based on your cache size
 
-## Contributing
+3. Important volume mounts:
+   ```yaml
+   volumes:
+     - /var/run/docker.sock:/var/run/docker.sock  # Required for Docker control
+     - /mnt/cache:/mnt/cache:ro                   # Cache access
+     - ./config:/app/config                       # Configuration
+     - ./logs:/app/logs                          # Logging
+   ```
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+4. Common environment variables:
+   ```yaml
+   environment:
+     - PAUSE_THRESHOLD=85        # When to pause containers
+     - RESUME_THRESHOLD=70       # When to resume containers
+     - CHECK_INTERVAL=300        # Check frequency in seconds
+     - ENABLE_NOTIFICATIONS=true # Enable notifications
+   ```
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+5. Security considerations:
+   - The container requires privileged mode for cache access
+   - Use read-only mounts where possible
+   - Consider network isolation for sensitive containers
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+6. Additional features:
+   - Health checks ensure the service is running properly
+   - Resource limits prevent excessive CPU/memory usage
+   - Custom scripts can be mounted for additional functionality
+   - Multiple notification options available
