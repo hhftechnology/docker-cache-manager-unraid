@@ -1,6 +1,22 @@
 # Docker Compose Examples for Cache Manager
 
 [![Docker Image CI/CD](https://github.com/hhftechnology/docker-cache-manager-unraid/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/hhftechnology/docker-cache-manager-unraid/actions/workflows/docker-publish.yml)
+## ⚠️ IMPORTANT SAFETY WARNINGS
+
+Before proceeding with the installation and use of this service, please read and understand these critical warnings:
+
+1. **Data Loss Risk**: This service is designed to permanently delete media files. Once files are deleted, they CANNOT be recovered unless you have backups. The deletion is immediate and bypasses the recycle bin.
+
+2. **No Built-in Recovery**: The service does not include any file recovery capabilities. Deleted files are permanently removed from your system.
+
+3. **Verification Required**: Always read the scripts to verify what would be deleted before enabling actual deletions or running the container.
+
+4. **Backup Critical**: Maintain regular backups of your important media files.
+
+5. **Permission Issues**: Incorrect permissions can lead to unintended file access or failed deletions. Always verify PUID/PGID settings.
+
+6. **Network Dependencies**: Service relies on network access to Plex/Sonarr. Network issues could cause synchronization problems.
+
 
 ## Basic Setup Example
 ```yaml
